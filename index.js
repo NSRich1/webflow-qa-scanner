@@ -62,4 +62,36 @@ app.post("/scan", async (req, res) => {
         }
 
         if (audits["dom-size"]?.score !== 1) {
-          issues.push({ page, message: "Excessive DOM siz
+          issues.push({ page, message: "Excessive DOM size" });
+        }
+
+        if (audits["errors-in-console"]?.score !== 1) {
+          issues.push({ page, message: "Console errors present" });
+        }
+
+        if (audits["is-crawlable"]?.score !== 1) {
+          issues.push({ page, message: "Page may not be crawlable" });
+        }
+
+      } catch (err) {
+        issues.push({ page, message: "Lighthouse failed: " + err.message });
+      }
+    }
+
+    await chrome.kill();
+
+    const score = count ? Math.round(totalScore / count) : 0;
+
+    return res.json({
+      score,
+      pageCount: pages.length,
+      issues,
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Scan failed" });
+  }
+});
+
+app.listen(3000, () => console.log("✅ QA Scanner backend running on port 3000"));

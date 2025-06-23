@@ -1,50 +1,40 @@
-import express from "express";
-import cors from "cors";
-import lighthouse from "lighthouse";
-import chromeLauncher from "chrome-launcher";
+const express = require("express");
+const lighthouse = require("lighthouse");
+const chromeLauncher = require("chrome-launcher");
+const { JSDOM } = require("jsdom");
+const axios = require("axios");
 
 const app = express();
-const port = process.env.PORT || 3000;
-
-app.use(cors());
 app.use(express.json());
 
-async function runLighthouse(url) {
-  const chrome = await chromeLauncher.launch({ chromeFlags: ["--headless"] });
-  const options = { logLevel: "info", output: "json", port: chrome.port };
-  const runnerResult = await lighthouse(url, options);
-
-  await chrome.kill();
-
-  return {
-    url: runnerResult.lhr.finalUrl,
-    performance: runnerResult.lhr.categories.performance.score,
-    accessibility: runnerResult.lhr.categories.accessibility.score,
-    bestPractices: runnerResult.lhr.categories["best-practices"].score,
-    seo: runnerResult.lhr.categories.seo.score,
-  };
-}
-
 app.post("/scan", async (req, res) => {
-  const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: "Missing URL in request body" });
-  }
+  const targetUrl = req.body.url;
+  if (!targetUrl) return res.status(400).json({ error: "Missing URL" });
 
   try {
-    const result = await runLighthouse(url);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: "Scan failed", details: error.message });
+    const chrome = await chromeLauncher.launch({ chromeFlags: ["--headless"] });
+    const options = { logLevel: "info", output: "json", port: chrome.port };
+    const runnerResult = await lighthouse(targetUrl, options);
+
+    const report = JSON.parse(runnerResult.report);
+    const score = Math.round(report.categories.performance.score * 100);
+
+    await chrome.kill();
+
+    res.json({
+      score,
+      audits: {
+        unusedCss: report.audits["unused-css-rules"],
+        domSize: report.audits["dom-size"],
+        cachePolicy: report.audits["uses-long-cache-ttl"],
+        consoleErrors: report.audits["errors-in-console"]
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Audit failed." });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("✅ QA Scanner backend is running. Use POST /scan with { \"url\": \"https://example.com\" }");
-});
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`✅ QA Scanner running on port ${port}`));

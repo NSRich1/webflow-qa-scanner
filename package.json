@@ -1,0 +1,16 @@
+{
+  "name": "webflow-qa-scanner",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^21.3.8",
+    "lighthouse": "^11.7.0",
+    "jsdom": "^24.0.0",
+    "cors": "^2.8.5"
+  }
+}
